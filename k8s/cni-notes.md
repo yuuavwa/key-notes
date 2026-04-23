@@ -10,10 +10,10 @@
 手动执行比如：CNI_COMMAND=ADD CNI_CONTAINERID=xxx CNI_XXX=XXX /opt/cni/bin/calico < config.json
 
 ## 2. CNI 插件安装位置
-![](../images/cni_notes_pic_001.jpg)
+![](../images/k8s/cni_notes_pic_001.jpg)
 
 ## 3. 查看当前使用哪个CNI插件
-![](../images/cni_notes_pic_002.png)
+![](../images/k8s/cni_notes_pic_002.png)
 
 
 ## 4. CNI 插件规范

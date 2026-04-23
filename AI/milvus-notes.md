@@ -93,22 +93,22 @@ Notify(DataCoord) call NotifyChannelOperation(DataNode)
 ```
 
 ## 7、milvus集群模式无法使用embedded etcd
-![](../images/milvus_notes_pic_018.jpg)
+![](../images/AI/milvus_notes_pic_018.jpg)
 
 ## 8、配置不使用minio/s3
-![](../images/milvus_notes_pic_019.jpg)
+![](../images/AI/milvus_notes_pic_019.jpg)
 
 helm中values.yaml
 
-![](../images/milvus_notes_pic_020.jpg)
+![](../images/AI/milvus_notes_pic_020.jpg)
 
 但是配置本地盘有问题！！！
 
-![](../images/milvus_notes_pic_021.jpg)
+![](../images/AI/milvus_notes_pic_021.jpg)
 
 create_index会卡住，查看indexnode日志报错
 
-![](../images/milvus_notes_pic_022.jpg)
+![](../images/AI/milvus_notes_pic_022.jpg)
 
 原因：indexnode需要从datanode获取IOBinlog进行构建索引，本地存储数据不同步无法操作
 
@@ -118,38 +118,38 @@ create_index会卡住，查看indexnode日志报错
 
 ## 9、协调器副本有一个无法ready
 
-![](../images/milvus_notes_pic_026.jpg)
+![](../images/AI/milvus_notes_pic_026.jpg)
 
 解决：配置activeStandby
 
-![](../images/milvus_notes_pic_027.jpg)
+![](../images/AI/milvus_notes_pic_027.jpg)
 
-![](../images/milvus_notes_pic_028.jpg)
+![](../images/AI/milvus_notes_pic_028.jpg)
 
 ## 10、StreamingNode 是v2.5.x新特性，用于替换pulsar
 
 https://github.com/milvus-io/milvus/issues/33285
 
-![](../images/milvus_notes_pic_029.jpg)
+![](../images/AI/milvus_notes_pic_029.jpg)
 
 
 ## 11、Package milvus_core was not found in the pkg-config search path.
 
-![](../images/milvus_notes_pic_031.jpg)
+![](../images/AI/milvus_notes_pic_031.jpg)
 
 解决：环境变量初始化
 
-![](../images/milvus_notes_pic_032.jpg)
+![](../images/AI/milvus_notes_pic_032.jpg)
 
 ## 12、milvus helm 如果部署集群版，需要配置pvc为ReadWriteMany，否则ReadWriteOnce会导致引用的pod分配到同一个Node上
 
-![](../images/milvus_notes_pic_033.jpg)
+![](../images/AI/milvus_notes_pic_033.jpg)
 
-![](../images/milvus_notes_pic_034.jpg)
+![](../images/AI/milvus_notes_pic_034.jpg)
 
 ！！！另外解决方法 statefulset+volumeClaimTemplates (deployment需要切换成statefulset，无状态默认数据共享)会单独创建pvc：
 
-![](../images/milvus_notes_pic_035.jpg)
+![](../images/AI/milvus_notes_pic_035.jpg)
 
 ## 13、mixcoord总是报错 "bad resolver state"
 
@@ -157,14 +157,14 @@ https://github.com/milvus-io/milvus/issues/33285
 
 https://github.com/milvus-io/milvus/issues/40311
 
-![](../images/milvus_notes_pic_036.jpg)
+![](../images/AI/milvus_notes_pic_036.jpg)
 
 ## 14、mixcoord服务没有监听9099端口，导致liveness和readiness一直无法通过
 
-![](../images/milvus_notes_pic_037.jpg)
+![](../images/AI/milvus_notes_pic_037.jpg)
 
 原因：查看端口9099已经被插件calico插件占用
 
-![](../images/milvus_notes_pic_038.jpg)
+![](../images/AI/milvus_notes_pic_038.jpg)
 
 解决：mixcoord服务换个metrics端口

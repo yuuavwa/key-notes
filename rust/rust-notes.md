@@ -47,7 +47,7 @@ error[E0499]: cannot borrow test_str as mutable more than once at a time
 
 说明：借用mut_borrow后边没再使用，NLL判断其生命周期已经结束，但是此时变量test_str本身的生命周期并未结束
 
-![](../images/rust_notes_pic_001.jpg)
+![](../images/rust/rust_notes_pic_001.jpg)
 
 ## 4. NLL与变量生命周期
 NLL: (Non-Lexical Lifetimes)
@@ -196,13 +196,13 @@ thread::scope(|s| {
 ## 10. 只实现Sync但没有Send，多线程只能通过借用操作对象实例
 
 没有Send，则无法实现对g所有权的move操作
-![](../images/rust_notes_pic_002.jpg)
+![](../images/rust/rust_notes_pic_002.jpg)
 
-![](../images/rust_notes_pic_003.jpg)
+![](../images/rust/rust_notes_pic_003.jpg)
 
 spawn中去掉move，多线程可以直接进行不可变借用
 
-![](../images/rust_notes_pic_004.jpg)
+![](../images/rust/rust_notes_pic_004.jpg)
 
 说明：子线程中g.get()属于隐式借用，编译器“自动借用”。有了NLL之后，需要从程序逻辑上理解是否独占，是否“同时”存在可变不可变借用。
 
@@ -254,11 +254,11 @@ fn main() {
 }
 ```
 
-![](../images/rust_notes_pic_005.jpg)
+![](../images/rust/rust_notes_pic_005.jpg)
 
 可以把g所有权返回来，如下
 
-![](../images/rust_notes_pic_006.jpg)
+![](../images/rust/rust_notes_pic_006.jpg)
 
 ## 12. Copy vs Clone
 
@@ -268,13 +268,13 @@ Clone是自定义拷贝
 
 Copy是Clone的子集，实现Copy必须带上Clone
 
-![](../images/rust_notes_pic_007.jpg)
+![](../images/rust/rust_notes_pic_007.jpg)
 
-![](../images/rust_notes_pic_008.jpg)
+![](../images/rust/rust_notes_pic_008.jpg)
 
 或者手动 impl clone
 
-![](../images/rust_notes_pic_009.jpg)
+![](../images/rust/rust_notes_pic_009.jpg)
 
 注：对Arc进行Clone只是增加引用计数，所有Clone出来的句柄都指向同一块内存，一般多线程“ Clone + move ” 的方式实现共享同步
 
@@ -317,7 +317,7 @@ fn main() {
     println!("thread queue {:?}", tq.join().unwrap());
 }
 ```
-![](../images/rust_notes_pic_010.jpg)
+![](../images/rust/rust_notes_pic_010.jpg)
 
 ## 14. 栈 LIFO
 

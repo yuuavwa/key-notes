@@ -167,9 +167,9 @@ fn main() {
 注：注意区别在于检查或者绕过阶段。
 
 ## Cell/RefCell 最佳实践
-![](../images/rust_notes_pic_011.jpg)
+![](../images/rust/rust_notes_pic_011.jpg)
 
 ## Cell/RefCell性能对比
-![](../images/rust_notes_pic_012.jpg)
+![](../images/rust/rust_notes_pic_012.jpg)
 
-![](../images/rust_notes_pic_013.jpg)
+![](../images/rust/rust_notes_pic_013.jpg)
