@@ -19,6 +19,11 @@
 - [Rust 编程语言核心概念梳理](./rust/rust-notes.md)
 - [Rust 内部可变性模式详解](./rust/rust-interior-mutability.md)
 
+## 🐹 Go 语言
+
+- [GMP 调度模型要点](./golang/gmp-scheduler-notes.md)
+- [Go 语言实用技巧与调试](./golang/go-notes.md)
+
 ---
 
 *持续更新中...*
