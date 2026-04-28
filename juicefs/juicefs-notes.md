@@ -369,5 +369,121 @@ juicefs rmr `<Dir>`
 ![](../images/juicefs/juicefs_notes_pic_088.jpg)
 结论：性能提升一倍
 
+## 商业版基础调研
 
+https://juicefs.com/console/
 
+### 1、在选择的云厂商上创建三个节点的元数据服务
+/root/.juicefs/fsonali.conf
+![](../images/juicefs/juicefs_notes_pic_089.jpg)
+
+控制台上删除文件系统后，源数据库仍然存在
+![](../images/juicefs/juicefs_notes_pic_090.jpg)
+```
+hhyan@abc:~/dev-xosfs$ sudo cat /root/.juicefs/fsonali.conf
+{
+  "rootname": "fsonali",
+  "storage": "oss",
+  "region": "cn-hangzhou",
+  "bucket": "juicefs-fsonali.oss-cn-hangzhou.aliyuncs.com",
+  "partitions": 0,
+  "replicated": false,
+  "compatible": false,
+  "public": false,
+  "blockSize": 4096,
+  "readonly": false,
+  "subdir": "/",
+  "master": "aliyun-cn-hangzhou-1.meta.juicefs.com:9443",
+  "master_ip": [
+    "116.62.127.231",
+    "47.96.5.176",
+    "47.98.240.59"
+  ],
+  "password": "",
+  "compress": "lz4",
+  "accesskey": "",
+  "secretkey": "",
+  "tested": 1,
+  "token": ""
+```
+* 以上认证信息已脱敏
+
+### 2、安全加固
+![](../images/juicefs/juicefs_notes_pic_091.jpg)
+![](../images/juicefs/juicefs_notes_pic_092.jpg)
+
+在本地都找不到他的juicefs 二进制包   但是ps可以看到对应命令行，因为这个二进制文件实际是jfsmount
+查看启动进程的环境变量
+cat /proc/138783/environ | tr '\0' '\n'
+![](../images/juicefs/juicefs_notes_pic_093.jpg)
+
+## 测试挂载启动
+
+### 1、启动minio
+参考：https://juicefs.com/docs/zh/community/how_to_setup_object_storage#minio
+--restart=always  每次启动系统会自动拉起，这里去掉
+```
+sudo docker run --name juicefs-minio -p 19000:9000 -p 19001:9001 -d \
+    -e "MINIO_ACCESS_KEY=admin" -e "MINIO_SECRET_KEY=adminPa55" \
+    -v "/home/hhyan/dev-juicefs/minio-data":"/data" \
+    minio/minio server /data --console-address ":9001"
+```
+minio控制台：http://172.23.117.213:19001/
+登录信息：admin / adminPa55
+
+### 2、启动redis
+详细说明：https://juicefs.com/docs/zh/community/databases_for_metadata
+```
+sudo docker run -itd --name juicefs-redis \
+  -p 6379:6379 redis --requirepass ".Rpa55la@@"
+```
+也可以登录容器内部redis-cli来设置/修改密码
+![](../images/juicefs/juicefs_notes_pic_094.jpg)
+
+![](../images/juicefs/juicefs_notes_pic_095.jpg)
+
+默认创建16个库（kv字典），使用第1个即可
+
+### 3、本地juicefs操作
+操作说明：https://juicefs.com/docs/zh/community/clouds/aws#3-%E5%88%9B%E5%BB%BA%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F
+
+#### 3.1 创建文件系统
+```
+./juicefs format --storage minio --bucket http://192.168.137.112:19000/juicefs \
+    --access-key admin --secret-key adminPa55 \
+    redis://:`echo '.Rpa55la@@' | tr -d '\n' | xxd -plain | sed 's/\(..\)/%\1/g'`@192.168.137.112:6379/1 jfs
+```
+
+#### 3.2 挂载文件系统
+```
+sudo ./juicefs mount -d redis://:`echo '.Rpa55la@@' | tr -d '\n' | xxd -plain | sed 's/\(..\)/%\1/g'`@192.168.137.112:6379/1 /mnt/jfs
+```
+
+#### 3.3 代码启动
+```
+sudo docker start juicefs-redis
+sudo docker start juicefs-minio
+LocalIP=`ifconfig -a|grep eth0 -A 3 | grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+
+#sudo go run main.go format --storage minio --bucket http://$LocalIP:19000/juicefs --access-key admin --secret-key adminPa55 redis://:`echo '.Rpa55la@@' | tr -d '\n' | xxd -plain | sed 's/\(..\)/%\1/g'`@$LocalIP:6379/1 jfs
+
+sudo go run main.go --trace mount --bucket http://$LocalIP:19000/juicefs -d redis://:`echo '.Rpa55la@@' | tr -d '\n' | xxd -plain | sed 's/\(..\)/%\1/g'`@$LocalIP:6379/1 /mnt/jfs
+```
+
+## TiKV基本操作
+
+命令行参考官网：https://tikv.org/docs/4.0/tasks/scale/introduction/#:~:text=You%20can%20scale%20out%20a%20TiKV%20cluster%20by,Ansible%2C%20see%20Scale%20the%20TiKV%20Cluster%20Using%20TiDB-Ansible.
+
+### 1、查看pd集群信息
+sudo docker exec -it tikv-pd1 sh
+/ # ./pd-ctl -u http://localhost:2379 member
+
+### 2、扩容tikv-server节点
+拉起新的tikv-server，pd指向原集群即可
+
+![](../images/juicefs/juicefs_notes_pic_096.jpg)
+
+### 3、查看tikv-server集群信息
+hhyan@abc:~/dev-xosfs$ sudo docker exec -it tikv-pd1 sh
+/ # ./pd-ctl -u http://localhost:2379 store
+或者 curl 192.168.137.10:2379/pd/api/v1/stores
