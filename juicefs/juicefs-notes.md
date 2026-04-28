@@ -280,5 +280,36 @@ find /tmp/jcache -type d -name rawstaging | xargs du -sh
 
 参考 handleInternalMsg 通过写入control文件直接操作对应命令或者请求，不需要通过fuse接口
 
+## 随机写单个block
 
+测试脚本
 
+```
+TFILE="/mnt/jfs/rfile"
+print("Test file:", TFILE)
+f = open(TFILE, "r+")
+#f.write("------------")
+#f.seek(1234, 0)
+#f.write("********1234")
+f.seek(3800, 0)
+pos = f.tell()
+print("current position:", pos)
+f.write("111222333444555666")
+f.close()
+```
+
+会新生成一个block
+![](../images/juicefs/juicefs_notes_pic_073.jpg)
+
+查看元信息
+```
+LocalIP=`ifconfig -a|grep ens3 -A 3 | grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+echo "Local address: "$LocalIP
+./juicefs dump redis://:`echo '.Rpa55la@@' | tr -d '\n' | xxd -plain | sed 's/\(..\)/%\1/g'`@$LocalIP:16379/1 meta.dump
+```
+vim meta.dump
+![](../images/juicefs/juicefs_notes_pic_074.jpg)
+
+也就是说随机写也是新增文件(不需要拉取原数据block来重写覆盖)，分片覆盖重构由读操作完成
+
+![](../images/juicefs/juicefs_notes_pic_075.jpg)
