@@ -112,3 +112,26 @@ func produce(tasks chan<- object.Object, src, dst object.ObjectStorage, srckeys,
         }
 ```
 ![](../../images/juicefs/juicefs_notes_pic_058.jpg)
+
+## 同步功能实践
+### 免密钥
+```
+go run main.go sync hdfs://127.0.0.1:8020/user /mnt/jfs/user
+juicefs sync hdfs://127.0.0.1:8020/user /mnt/jfs/user
+```
+### 带上ak/sk 
+```
+# admin/xxxxxx
+go run main.go sync minio://admin@xxxxxx@172.17.0.2:9000/juicefs/jfs/meta /mnt/jfs/meta
+```
+![](../../images/juicefs/juicefs_notes_pic_082.jpg)
+
+### sync没报错但是没有同步数据
+
+![](../../images/juicefs/juicefs_notes_pic_083.jpg)
+解决：路径加上/ 后正常同步
+![](../../images/juicefs/juicefs_notes_pic_084.jpg)
+
+![](../../images/juicefs/juicefs_notes_pic_085.jpg)
+
+说明：这个是hdfs的问题，验证local file类型没有这个问题

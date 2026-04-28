@@ -313,3 +313,61 @@ vim meta.dump
 也就是说随机写也是新增文件(不需要拉取原数据block来重写覆盖)，分片覆盖重构由读操作完成
 
 ![](../images/juicefs/juicefs_notes_pic_075.jpg)
+
+## 认证逻辑适配k8s
+k8s上的node数量不固定，pod挂载所在物理机也不固定，无法通过获取单个节点的机器码来进行证书的加密生成以及后续的认证
+使用k8s中的namespace的uuid来代替机器码
+获取namespace的uuid：
+```
+kubectl get ns kube-system -o 'jsonpath={.metadata.uid}'
+```
+
+## 启动报错：invalid userinfo [interface.go:390]
+![](../images/juicefs/juicefs_notes_pic_077.jpg)
+
+解决：特殊字符用base64进行加密，urlencode 这些特殊密码
+```
+echo '.ZHDWAKFGRz^e{22' | tr -d '\n' | xxd -plain | sed 's/\(..\)/%\1/g'
+```
+![](../images/juicefs/juicefs_notes_pic_078.jpg)
+
+## 启动报错：failed to create new redis store, error info is LOADING Redis is loading the dataset in memory
+解决：redis-cli flushall 后重启容器解决
+
+![](../images/juicefs/juicefs_notes_pic_079.jpg)
+
+## 随机读导致读放大
+大量的随机读取，会导致预读prefetch失效，造成严重的读放大问题：
+https://juicefs.com/docs/zh/cloud/administration/troubleshooting/#read-amplification
+![](../images/juicefs/juicefs_notes_pic_080.jpg)
+
+## 删除大文件
+juicefs rmr `<Dir>`
+内部删除命令写入.control控制文件，直接通过后端进程调用redis删除文件元数据。文件实际数据由定时任务来异步删除，从而加快删除操作。
+```
+    case meta.Rmr:
+        done := make(chan struct{})
+        var count uint64
+        var st syscall.Errno
+        go func() {
+            inode := Ino(r.Get64())
+            name := string(r.Get(int(r.Get8())))
+            st = v.Meta.Remove(ctx, inode, name, &count)
+            if st != 0 {
+                logger.Errorf("remove %d/%s: %s", inode, name, st)
+            }
+            close(done)
+        }()
+        writeProgress(&count, nil, data, done)
+        *data = append(*data, uint8(st))
+```
+![](../images/juicefs/juicefs_notes_pic_086.jpg)
+
+![](../images/juicefs/juicefs_notes_pic_087.jpg)
+
+对比
+![](../images/juicefs/juicefs_notes_pic_088.jpg)
+结论：性能提升一倍
+
+
+
