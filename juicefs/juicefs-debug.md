@@ -1,8 +1,10 @@
 ## 调试步骤
 
 ## 1、下载所有依赖包
-    cd ~/go/src/github.com/juicefs
-    go mod download
+```
+cd ~/go/src/github.com/juicefs
+go mod download
+```
 ## 2、dlv调试
 启动命令行去掉 -d (backgroup) 后台daemon运行选项
 调试命令如下
