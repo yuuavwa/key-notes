@@ -28,3 +28,12 @@ dmidecode -t slot   查看所在插槽
 ![](../images/linux/linux_notes_pic_005.jpg)
 
 类型：PCIe3  插槽：Slot1
+
+## 动态库版本
+refer
+```
+https://tldp.org/HOWTO/Program-Library-HOWTO/shared-libraries.html
+https://www.baeldung.com/linux/shared-object-filenames
+```
+动态库命名遵循semantic versioning, libXXXso.x.y.z，系统默认创建软连接libXXXso.x链接到最新版本
+
