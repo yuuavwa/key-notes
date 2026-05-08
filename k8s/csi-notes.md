@@ -290,3 +290,14 @@ grpc_server_handling_seconds_bucket{grpc_method="NodeUnstageVolume",grpc_service
 grpc_server_handling_seconds_bucket{grpc_method="NodeUnstageVolume",grpc_service="csi.v1.Node",grpc_type="unary",le="1"} 2
 grpc_server_handling_seconds_bucket{grpc_method="NodeUnstageVolume",grpc_service="csi.v1.Node",grpc_type="unary",le="2"} 2
 ```
+## 21. 日志分级实现
+
+![](../images/k8s/csi_notes_pic_024.jpg)
+
+![](../images/k8s/csi_notes_pic_025.jpg)
+
+klog.InitFlags 自动注册命令行参数比如--v到全局flag中，flag.Parse() 会获取解析参数
+
+业务代码中通过指定内容打印等级，klog.V(5).Infof ，启动时配置打印日志等级
+
+![](../images/k8s/csi_notes_pic_026.jpg)
