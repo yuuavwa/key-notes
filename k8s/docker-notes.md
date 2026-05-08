@@ -8,7 +8,7 @@
 sudo docker cp  x:/yyy /root/
 
 ## 2. docker build卡住
-docker build卡在apk add，但是本地wget可以
+docker build卡在apk add，但是本地wget没问题
 ![](../images/k8s/docker_notes_pic_003.jpg)
 
 解决：使用host网络 --network host
@@ -310,3 +310,66 @@ nsenter --mount=/proc/1/ns/mnt
 ```
 说明：进入宿主机的命名空间后，即可操作宿主机的文件系统
 ![](../images/k8s/docker_notes_pic_029.jpg)
+
+## 17. How to SSH into the Docker VM (MobyLinuxVM) on Windows
+refer: https://forums.docker.com/t/how-can-i-ssh-into-the-betas-mobylinuxvm/10991/6
+```
+# get a privileged container with access to Docker daemon
+docker run --privileged -it --rm -v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker alpine sh
+
+# run a container with full root access to MobyLinuxVM and no seccomp profile (so you can mount stuff)
+docker run --net=host --ipc=host --uts=host --pid=host -it --security-opt=seccomp=unconfined --privileged --rm -v /:/host alpine /bin/sh
+
+# switch to host FS
+chroot /host
+```
+## 18. standard_init_linux.go:190: exec user process caused "no such file or directory"
+![](../images/k8s/docker_notes_pic_030.jpg)
+原因：windows下，文件为dos格式问题
+解决：
+dos2unix bin/*
+重新构建
+
+## 19. docker: Error response from daemon: error while creating mount source path '/opt/prometheus/prometheus.yml': mkdir /opt/prometheus: read-only file system.
+```
+root@abc:/opt/prometheus# docker run  -d \
+-p 9090:9090 
+-v /opt/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml  
+prom/prometheus
+a5e324ef48a9b78cb2c5aeb69565f3e19ee2fb535ab755a4f96824cff4dd234d
+docker: Error response from daemon: error while creating mount source path '/opt/prometheus/prometheus.yml': mkdir /opt/prometheus: read-only file system.
+```
+![](../images/k8s/docker_notes_pic_031.jpg)
+默认的配置是容器使用的所有文件都需要在/home目录下
+解决：将目录移动到home目录下，重新-v挂载即可
+(1) mv /opt/prometheus /home/hhyan/
+
+(2) 调整启动挂载路径
+```
+docker run -d  \
+    -p 9090:9090  \
+    -v /home/hhyan/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml  \
+    prom/prometheus
+```
+
+
+## 20. docker build报错：Could not resolve host: mirrorlist.centos.org
+
+原因：centos 7到期，需要切换到vault.centos.org
+
+## 21. 查看image的dockerfile
+- 下载工具镜像 alpine/dfimage
+```
+sudo docker pull alpine/dfimage
+```
+- 配置命令行
+```
+alias dfimage="sudo docker run -v /var/run/docker.sock:/var/run/docker.sock --rm alpine/dfimage"
+```
+- 执行分析
+```
+dfimage pingcap/tikv:latest
+```
+![](../images/k8s/docker_notes_pic_032.jpg)
+
+注：也可以 docker history <image> 查看
