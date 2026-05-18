@@ -81,8 +81,9 @@ OpenAI兼容性模型需要 / 加前缀
 
 ![](../images/AI/crewai_notes_pic_014.png)
 
-* find_dotenv函数会从当前模块所在目录开始查找.env文件，直到找到或到达沙盒.venv根目录
-解决：故.env文件应该放在.venv或者在crewai模块所在目录
+>find_dotenv函数会从当前模块所在目录开始查找.env文件，直到找到或到达沙盒.venv根目录
+
+**解决：故.env文件应该放在.venv或者在crewai模块所在目录**
 
 ![](../images/AI/crewai_notes_pic_015.png)
 
