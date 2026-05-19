@@ -54,6 +54,10 @@ UV_PROJECT_ENVIRONMENT=/home/ubuntu/xdbcm/.venv/ crewai run
 
 * 注意：由于load_dotenv函数会从当前模块所在目录开始查找.env文件，所以如果在crewai模块所在目录下运行，.env文件需要放在crewai python模块所在目录下，或者沙盒根目录下
 
+## 启用memory 配置ollama模型
+### 
+
+
 
 ## Troubleshooting
 1. 配置了deepseek大模型，crewai run 时报错“ OPENAI_API_KEY is required ”
