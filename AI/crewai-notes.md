@@ -2,6 +2,8 @@
 ```
 # 安装uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
+uv venv
+source .venv/bin/activate
 # -i 指定国内源
 uv pip install crewai -i https://mirrors.aliyun.com/pypi/simple/
 ```
@@ -39,28 +41,47 @@ UV_PROJECT_ENVIRONMENT=/home/ubuntu/xdbcm/.venv/ crewai run
 ![](../images/AI/crewai_notes_pic_005.png)
 * 这里只下载沙盒中没有的依赖
 
-也可以把 UV_PROJECT_ENVIRONMENT=/home/ubuntu/xdbcm/.venv/ 配置到.env文件中，将.env文件放在crewai模块所在目录下，或者沙盒根目录下
+把 UV_PROJECT_ENVIRONMENT=/home/ubuntu/xdbcm/.venv/ 配置到.env文件中，将.env文件放在crewai模块所在目录下，或者沙盒根目录下
 ![](../images/AI/crewai_notes_pic_005_1.png)
 
 
-也可以先运行 install 把智能体依赖安装到沙盒中再Run
+也可以先运行 install --active 把智能体依赖安装到沙盒中再Run
 ```
 # 安装智能体依赖到沙盒中
 crewai install --active
-# 指定沙盒路径
-UV_PROJECT_ENVIRONMENT=/home/ubuntu/xdbcm/.venv/ crewai run
+crewai run
 ```
 ![](../images/AI/crewai_notes_pic_006.png)
 
 * 注意：由于load_dotenv函数会从当前模块所在目录开始查找.env文件，所以如果在crewai模块所在目录下运行，.env文件需要放在crewai python模块所在目录下，或者沙盒根目录下
 
 ## 启用memory 配置ollama模型
-### 
+### 本地配置ollama模型
+[《ollama 实践》](./ollama-notes.md)
 
-
+### crew.py memory配置ollama embedder
+```
+    @crew
+    def crew(self) -> Crew:
+        # 配置内存系统使用自定义 LLM
+        memory = Memory(embedder={
+            "provider": "ollama",
+            "config": {
+                "model_name": "nomic-embed-text",
+                "url": "http://localhost:11434/api/embeddings",
+            },
+        })
+        return Crew(
+            agents=[self.manager_agent(), self.math_expert(), self.language_expert(), self.quality_assurance()],
+            tasks=[self.analyze_and_delegate(), self.evaluate_math(), self.evaluate_language(), self.quality_review()],
+            process=Process.sequential,
+            memory=memory,  # 使用自定义配置的内存系统
+            verbose=True,
+        )
+```
 
 ## Troubleshooting
-1. 配置了deepseek大模型，crewai run 时报错“ OPENAI_API_KEY is required ”
+### 1. 配置了deepseek大模型，crewai run 时报错“ OPENAI_API_KEY is required ”
 ![](../images/AI/crewai_notes_pic_007.png)
 ![](../images/AI/crewai_notes_pic_008.png)
 
@@ -91,3 +112,18 @@ OpenAI兼容性模型需要 / 加前缀
 
 ![](../images/AI/crewai_notes_pic_015.png)
 
+### 2. 配置了ollama模型，crewai run 时报错“ OLLAMA_API_KEY is required ”
+![](../images/AI/crewai_notes_pic_016.png)
+grep 对应日志，逐级往上加traceback，查看调用栈
+```
+print("===============>"+provider)
+import traceback; traceback.print_stack()
+```
+![](../images/AI/crewai_notes_pic_017.png)
+![](../images/AI/crewai_notes_pic_018.png)
+
+追溯到Memory初始化llm处
+![](../images/AI/crewai_notes_pic_019.png)
+把Memory embedder 设成 ollama 并不会自动把 LLM 也换成 ollama模型
+**解决：代码中初始化Memory需要传递llm为deepseek模型，否则默认使用gpt-4o-mini**
+![](../images/AI/crewai_notes_pic_020.png)
