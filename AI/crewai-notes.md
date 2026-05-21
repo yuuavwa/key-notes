@@ -112,7 +112,7 @@ OpenAI兼容性模型需要 / 加前缀
 
 ![](../images/AI/crewai_notes_pic_015.png)
 
-### 2. 配置了ollama模型，crewai run 时报错“ OLLAMA_API_KEY is required ”
+### 2. 配置了ollama模型，crewai run 时报错“ OPENAI_API_KEY is required ”
 ![](../images/AI/crewai_notes_pic_016.png)
 grep 对应日志，逐级往上加traceback，查看调用栈
 ```
@@ -127,3 +127,18 @@ import traceback; traceback.print_stack()
 把Memory embedder 设成 ollama 并不会自动把 LLM 也换成 ollama模型
 **解决：代码中初始化Memory需要传递llm为deepseek模型，否则默认使用gpt-4o-mini**
 ![](../images/AI/crewai_notes_pic_020.png)
+
+### 3. 配置Memory LLM为deepseek报错
+This response_format type is unavailable now
+![](../images/AI/crewai_notes_pic_021.png)
+
+OpenAICompatibleCompletion 继承自OpenAICompletion，最终还是会按照OpenAI的response_format 格式进行parse
+![](../images/AI/crewai_notes_pic_022.png)
+解决：ollama拉取llama3.2模型，支持response_format 格式
+切换为本地ollama模型
+```
+memory = Memory(
+    llm="ollama/llama3.2",
+    embedder={"provider": "ollama", "config": {"model_name": "nomic-embed-text", "url": "http://localhost:11434/api/embeddings"}},
+)
+```
