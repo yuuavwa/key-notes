@@ -23,6 +23,13 @@ mkdir -p cc-workspace
 cd cc-workspace
 claude
 ```
+
+## VSCode下使用Claude Code
+修改settings.json配置claude code使用deepseek模型
+![](../images/AI/cc_notes_pic_000_1.png)
+![](../images/AI/cc_notes_pic_000_2.png)
+
+
 ## Troubleshooting
 ### 1. Note: Claude Code might not be available in
 ![](../images/AI/cc_notes_pic_001.png)
