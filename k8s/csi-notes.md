@@ -301,3 +301,19 @@ klog.InitFlags 自动注册命令行参数比如--v到全局flag中，flag.Parse
 业务代码中通过指定内容打印等级，klog.V(5).Infof ，启动时配置打印日志等级
 
 ![](../images/k8s/csi_notes_pic_026.jpg)
+
+## 22. Provisioner 处理pvc的过程中触发了切主操作
+### 如何保证pvc处理任务的可恢复性
+新Leader会进行resync, resyncPeriod 到期，Informer 会将其缓存中的所有对象（不是重新从 API Server 拉取全量数据）重新“推入”工作队列，触发 ProvisionController 对这些对象的 Reconcile 过程，从而增强健壮性和自愈能力
+
+resyncPeriod默认15min
+
+![](../images/k8s/csi_notes_pic_027.jpg)
+
+### 如何避免双主脑裂问题
+旧Leader续约失败有10s的刷日志时间
+![](../images/k8s/csi_notes_pic_028.jpg)
+- 旧Leader续约失败，在新Leader切换完成后，旧Leader还未完成OnStoppedLeading清理，此时仍然执行pvc处理任务
+- 新Leader进行resync ，也会重新执行pvc处理任务。
+
+**此时需要pvc处理逻辑的幂等性保证两处重复执行不出错**
