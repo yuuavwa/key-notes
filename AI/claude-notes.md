@@ -26,7 +26,7 @@ claude
 
 ## VSCode下使用Claude Code
 修改settings.json
-- 修改claudeCode.disableLoginPrompt为true，绕过登录提示
+- 配置claudeCode.disableLoginPrompt为true，绕过登录提示
 - 配置claude code使用deepseek模型
 ![](../images/AI/cc_notes_pic_000_1.png)
 ![](../images/AI/cc_notes_pic_000_2.png)
