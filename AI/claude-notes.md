@@ -14,6 +14,11 @@ export ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash
 export CLAUDE_CODE_SUBAGENT_MODEL=deepseek-v4-flash
 export CLAUDE_CODE_EFFORT_LEVEL=max
 
+# optimization
+export CLAUDE_CODE_ATTRIBUTION_HEADER=0
+export CLAUDE_CODE_ENABLE_TELEMETRY=0
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
 ```
 ## 运行Claude
 
@@ -24,9 +29,29 @@ cd cc-workspace
 claude
 ```
 
+## claude cli 配置
+配置 ~/.claude/settings.json 避免每次打开shell都要export环境变量
+```
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "ANTHROPIC_MODEL": "deepseek-v4-pro[1m]",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro[1m]",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro[1m]",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "deepseek-v4-flash",
+    "CLAUDE_CODE_EFFORT_LEVEL": "max",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  }
+}
+```
+
 ## VSCode下使用Claude Code
 修改settings.json
-- 配置claudeCode.disableLoginPrompt为true，绕过登录提示
+- 配置claudeCode.disableLoginPrompt 为true，绕过登录提示
 - 配置claude code使用deepseek模型
 ![](../images/AI/cc_notes_pic_000_1.png)
 ![](../images/AI/cc_notes_pic_000_2.png)
