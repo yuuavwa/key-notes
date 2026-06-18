@@ -1029,6 +1029,8 @@ nerdctl build -t <Registry>/<Repository>:<Tag> .
 ```
 nerdctl push <Registry>/<Repository>:<Tag>
 ```
+注：如果是k8s集群一般需要-namespace参数指定命名空间k8s.io，默认是default
+
 
 ## 验证微调模型
 输出模型后创建推理服务进行验证，挂载模型，启动vllm推理服务

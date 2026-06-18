@@ -22,7 +22,103 @@ refer: [使用 vLLM 进行分布式推理](https://blog.vllm.com.cn/2025/02/17/d
 - 如果互连效率高（例如 NVLink, InfiniBand），张量并行可以扩展到跨节点。
 - 智能地结合这两种技术可以 减少不必要的通信开销 并最大化 GPU 利用率。
 
-## AiBrix 部署及运行
+## AiBrix 要点
+### AiBrix StormService 
+StormService是RoleSet的控制器，并非只是用于Prefill/Decode分离，真正的P/D分离需要在vllm中通过参数配置
+
+### 相关协议
+#### NCCL (NVIDIA Collective Communications Library)
+- 用于模型权重同步(广播、梯度同步、集合通信)，主要是多GPU间的数据交换
+- 模型训练过程的权重更新，张量并行（TP）中的AllReduce操作
+
+#### NIXL (NVIDIA Inference Xfer Library)
+- 用于AI分布式推理中KV Cache跨节点数据传输
+- PD分离推理中，prefill节点向decode节点传输KV Cache
+- 默认使用UCX作为传输后端
+
+#### UCX (Unified Communication X)
+- 通用高性能点对点通信的底层标准件
+- 支持TCP/RoCE/IB/RDMA/共享内存
+- 可作为NIXL的传输后端
+- HPC/大数据/AI/MPI
+
+### AiBrix 同时配置 L1 Cache 与 L2 Cache
+
+L1和L2 cache是可以共存的，共存的情况下先查L1(本地缓存)，未命中再查L2(分布式缓存)
+
+![](../images/AI/aibrix_notes_pic_003_1.jpg)
+
+### 查看ray-head pod内rdma网卡设备名
+通过nsenter使用宿主机命令行进入容器网络空间查看容器内rdma网卡设备名
+```
+crictl ps | grep rdma
+crictl inspect <container_id> | grep pid
+nsenter -n -t <pid> bash
+show_gids
+```
+![](../images/AI/aibrix_notes_pic_003_2.jpg)
+
+### decode pod正常加载远程prefill pod的kv cache 日志
+
+![](../images/AI/aibrix_notes_pic_003_3.jpg)
+
+
+### 推理Pod配置NCCL使用RDMA
+pod层面关注两个配置(配置名称与k8s集群配置的CNI插件相关，本集群配置hostdev-net CNI插件来管控rdma设备的挂载与卸载)
+- nvidia.com/hostdev: "1" 资源申请通过dp确保 RDMA 设备被预留给pod，并调度pod到对应资源所在节点
+- k8s.v1.cni.cncf.io/networks: hostdev-net CNI注解把rdma设备真正挂载到pod内
+
+主要配置变更包括：
+- pod资源申请
+```
+    resources:
+      limits:
+        cpu: "2"
+        nvidia.com/gpu: 1
+        nvidia.com/hostdev: '1'
+      requests:
+        cpu: "2"
+        nvidia.com/gpu: 1
+        nvidia.com/hostdev: '1'
+```
+- pod新增注解
+```
+    annotations:
+      k8s.v1.cni.cncf.io/networks: hostdev-net
+```
+- pod新增环境变量指定rdma网卡设备
+```
+    env:
+      - name: NCCL_IB_DISABLE
+        value: "0"
+      - name: NCCL_IB_HCA
+        value: mlx5_0
+```
+***注：hostdev-net CNI插件不会隔离rdma设备视图，如果配置NCCL_IB_HCA为空或者与分配的rdma设备不匹配会导致NCCL通信失败。故需要通过环境变量NCCL_IB_HCA来指定正确的rdma网卡设备***
+
+- pod确保权限
+```
+    securityContext:
+      capabilities:
+        add:
+          - IPC_LOCK
+```
+
+### AiBrix查询相关metrics
+aibrix-controller-manager和aibrix-gateway-plugins 都会执行都会运行cache_metrics相关逻辑
+```
+cache_metrics->
+InitWithOptions->initMetricsCache->time.NewTicker(podMetricRefreshInterval)->AIBRIX_POD_METRIC_REFRESH_INTERVAL_MS
+```
+![](../images/AI/aibrix_notes_pic_003_4.jpg)
+通过设置AIBRIX_POD_METRIC_REFRESH_INTERVAL_MS可以调节查询metrics的间隔。
+
+查询metrics作用
+- aibrix-gateway-plugins：数据面路由决策，选取 pod 处理当前请求
+- aibrix-controller-manager：控制面PodAutoscaler进行扩缩容决策
+
+
+## AiBrix Troubleshooting
 ### NCCL 通过IB通信有问题
 
 ![](../images/AI/aibrix_notes_pic_004.jpg)
@@ -124,3 +220,72 @@ spec:
 ![](../images/AI/aibrix_notes_pic_019.jpg)
 ![](../images/AI/aibrix_notes_pic_020.jpg)
 ![](../images/AI/aibrix_notes_pic_021.jpg)
+
+### routing-strategy: pd 请求导致prefill pod dump: uct_tcp_ep_am_bcopy
+
+![](../images/AI/aibrix_notes_pic_022.jpg)
+
+查看prefill其它日志有告警：memory is detected as host, check that UCX is configured with CUDA support
+
+![](../images/AI/aibrix_notes_pic_023.jpg)
+
+其它报错内容
+```
+[1781251134.964050] [vllm-1p1d-kvcache-ucx-tcp-roleset-7w6dx-prefill-66557c-0:321  :0]       ib_device.c:1383 UCX  ERROR   ibv_create_ah(dlid=49152 sl=0 port=1 src_path_bits=0 dgid=fe80::aac9:8aff:fe2d:d51d fl
+ow_label=0xffffffff sgid_index=0 traffic_class=0) for UD mlx5 connect on mlx5_0 failed: No such device
+W0612 00:58:54.964067     321 ucx_utils.cpp:64] Unexpected UCX error: Address not valid
+```
+说明UCX找mlx5设备走rdma，导致报错 NIXL_ERR_BACKEND
+
+原因：NixlConnector下配置tcp需要显式配置UCX_TLS: tcp,cuda_copy,cuda_ipc,sm， 否则会遇到NIXL_ERR_BACKEND。
+
+解决：配置 UCX_TLS: tcp,cuda_copy,cuda_ipc,sm  内存访问告警和PD分离请求coredump问题解决。另外，切换到MooncakeStoreConnector之后，因为不走ucx，UCX_TLS的配置无影响。
+
+### Error executing method 'init_device'.
+
+其它报错
+```
+RuntimeError: NCCL error: unhandled system error (run with NCCL_DEBUG=INFO for details)
+```
+![](../images/AI/aibrix_notes_pic_024.jpg)
+![](../images/AI/aibrix_notes_pic_025.jpg)
+
+原因及解决：NCCL初始化报错的原因比较多，本次是由于pod缺少权限, 配置IPC_LOCK权限即可
+```
+    securityContext:
+      capabilities:
+        add:
+          - IPC_LOCK
+```
+
+### Total number of attention heads (28) must be divisible by tensor parallel size (3)
+
+![](../images/AI/aibrix_notes_pic_026.jpg)
+
+解决：将 tensor_parallel_size 调整为模型头数的约数
+
+### ray-head 节点刷大量的metrics请求日志
+![](../images/AI/aibrix_notes_pic_027.jpg)
+
+查询这两个ip分别是 aibrix-gateway-plugins 与 aibrix-controller-manager
+
+解决：
+```
+kubectl set env deployment/aibrix-gateway-plugins -n aibrix-system AIBRIX_POD_METRIC_REFRESH_INTERVAL_MS=10000
+kubectl set env deployment/aibrix-controller-manager -n aibrix-system AIBRIX_POD_METRIC_REFRESH_INTERVAL_MS=10000
+```
+
+### NCCL_IB_HCA不配置的情况下，pod(只分配一个rdma设备)内会把宿主机上所有的rdma设备都发现出来，nccl初始化报错：
+![](../images/AI/aibrix_notes_pic_028.jpg)
+
+![](../images/AI/aibrix_notes_pic_029.jpg)
+
+原因：pod内能看到宿主机上其它未分配给它的rdma设备(pod通过ibv_devices也能查询到)，但没权限导致nccl初始化失败。问题出在host-device CNI 不提供 /dev/infiniband/设备的全局视图隔离。
+
+
+解决：手动指定NCCL_IB_HCA环境变量；或配置NetworkAttachmentDefinition 使用rdma cni，并在pod配置自动发现(NCCL_IB_HCA配置为空或者前缀匹配)。
+
+https://pkg.go.dev/github.com/Mellanox/rdma-cni#section-readme
+![](../images/AI/aibrix_notes_pic_030.jpg)
+
+说明：NCCL底层发现 RDMA 设备的原理与 ibv_devices 命令本质上是一样的，都是通过libibverbs 库的ibv_get_device_list函数来获取RDMA设备列表。该函数通过查询 /sys/class/infiniband/ 目录下的设备文件来获取RDMA设备列表。此外，NCCL 会将查询到的RDMA设备列表通过 NCCL_IB_HCA 环境变量来过滤出当前pod可以访问的设备。
