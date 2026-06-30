@@ -289,3 +289,51 @@ https://pkg.go.dev/github.com/Mellanox/rdma-cni#section-readme
 ![](../images/AI/aibrix_notes_pic_030.jpg)
 
 说明：NCCL底层发现 RDMA 设备的原理与 ibv_devices 命令本质上是一样的，都是通过libibverbs 库的ibv_get_device_list函数来获取RDMA设备列表。该函数通过查询 /sys/class/infiniband/ 目录下的设备文件来获取RDMA设备列表。此外，NCCL 会将查询到的RDMA设备列表通过 NCCL_IB_HCA 环境变量来过滤出当前pod可以访问的设备。
+
+### 追踪ibv_devices的执行轨迹
+strace ibv_devices
+![](../images/AI/aibrix_notes_pic_031.png)
+说明是从内核函数中读取对应网络命名空间中注册的rdma设备
+
+### pod内看到的设备目录与nsenter看到不同
+原因：nsenter进入网络空间，没有进入mount ns
+解决：需要同时进入网络+mount命名空间：nsenter -n -m <pid>
+
+![](../images/AI/aibrix_notes_pic_032.png)
+注：但进入了mount命名空间后，就无法使用宿主机的命令行了
+
+### ValueError: Unsupported connector type: AIBrixOffloadingConnectorV1Type3
+解决：切换镜像到aibrix官方镜像后解决 vllm-openai:v0.10.2-aibrix-v0.5.0-nixl-0.7.1-20251123，该镜像内部的vllm适配了这个connector
+vllm/distributed/kv_transfer/kv_connector/factory.py
+
+![](../images/AI/aibrix_notes_pic_033.jpg)
+
+![](../images/AI/aibrix_notes_pic_034.jpg)
+
+### vllm 集成 aibrix 的 AIBrixOffloadingConnectorV1Type3
+这个pr显示vllm社区可能不会支持inifistore: https://github.com/vllm-project/vllm/pull/9079
+故vllm官方镜像不能直接用，需要在构建vllm镜像时，给vllm的python库打patch
+![](../images/AI/aibrix_notes_pic_035.png)
+![](../images/AI/aibrix_notes_pic_036.jpg)
+![](../images/AI/aibrix_notes_pic_037.png)
+
+### L1和L2 cache都存在的情况下，L2 cache找到的内容会写入L1 cache
+![](../images/AI/aibrix_notes_pic_038.jpg)
+![](../images/AI/aibrix_notes_pic_039.png)
+
+### AIBrixPDReuseConnector 需要感知到当前是否是pd场景，如果是decode需要一直等待kv cache
+![](../images/AI/aibrix_notes_pic_040.png)
+
+### vLLM 集成 AIBrix 自定义 kv_connector 流程
+```
+vLLM kv_connector patch(新增的 AIBrixOffloadingConnector/AIBrixPDReuseConnector)
+->BaseKVCacheManager
+  ->L1Cache->根据eviction policy选择对应的BaseEvictionPolicy子类(s3fifo/lru/fifo)对内存字典_hashmap进行操作
+  ->L2Cache(根据backend_name初始化不同的L2存储Connector:RocksDBConnector/InfiniStoreConnector/PrisKVConnector/SHFSConnector等)
+```
+
+### AIBrixOffloadingConnector vs AIBrixPDReuseConnector
+- AIBrixOffloadingConnector 专注于cache offloading，可配置kv_both，但不支持实际的pd分离请求
+- AIBrixPDReuseConnector 基于offloading上增加了 PD Disaggregation 支持，判断出decode请求类型必须从L2 cache中获取：
+  - prefill请求完成返回 PD 信息的字典，传给 router，由router再转到 decoder
+  - 判断出decode请求类型，decoder 强制从 L2 cache SHFS 加载
