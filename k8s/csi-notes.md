@@ -317,3 +317,9 @@ resyncPeriod默认15min
 - 新Leader进行resync ，也会重新执行pvc处理任务。
 
 **此时需要pvc处理逻辑的幂等性保证两处重复执行不出错**
+
+## 23. 查看CSIDriver支持的属性
+不同版本CSIDriver支持的属性不同，创建pvc时，需要根据CSIDriver的属性来配置kubelet对pvc的行为
+kubectl explain CSIDriver.spec
+![](../images/k8s/csi_notes_pic_029.jpg)
+
